@@ -97,7 +97,7 @@ proc stop {} {
 	$ns flush-trace
 	close $tracefd
 	close $namtrace
-	exec nam out.nam &
+	exec nam simwrls.nam &
 	exit 0
 }
 
