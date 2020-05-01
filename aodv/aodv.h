@@ -43,6 +43,9 @@ The AODV code developed by the CMU/MONARCH group was optimized and tuned by Sami
 #include <aodv/aodv_rqueue.h>
 #include <classifier/classifier-port.h>
 
+//Modification (add node's energy header)
+#include <mobilenode.h>
+
 /*
   Allows local repair of routes 
 */
@@ -170,14 +173,16 @@ private:
 	Event	intr;
 };
 
-
 /*
   Broadcast ID Cache
 */
 class BroadcastID {
         friend class AODV;
  public:
-        BroadcastID(nsaddr_t i, u_int32_t b) { src = i; id = b;  }
+        BroadcastID(nsaddr_t i, u_int32_t b) {
+		src = i;
+		id = b;
+	}
  protected:
         LIST_ENTRY(BroadcastID) link;
         nsaddr_t        src;
@@ -213,6 +218,10 @@ class AODV: public Agent {
         int             command(int, const char *const *);
         int             initialized() { return 1 && target_; }
 
+	//Modification (declare variable for the node's energy)
+	double		energy_t;
+	MobileNode	*t_node;
+
         /*
          * Route Table Management
          */
@@ -221,6 +230,8 @@ class AODV: public Agent {
 		     	  	u_int16_t metric, nsaddr_t nexthop,
 		      		double expire_time);
         void            rt_down(aodv_rt_entry *rt);
+	//Modification (to print routing table);
+	void		rt_print(nsaddr_t nodeid);
         void            local_rt_repair(aodv_rt_entry *rt, Packet *p);
  public:
         void            rt_ll_failed(Packet *p);

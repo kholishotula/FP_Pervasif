@@ -11,7 +11,7 @@ set val(nn)	17 ;				# number of mobilenodes
 set val(rp)	AODV ;				# routing protocol
 set val(x)	1000 ;				# X dimension of topography
 set val(y)	600 ;				# Y dimension of topography
-set val(stop)	150.0 ;				# time of simulation end
+set val(stop)	50.0 ;				# time of simulation end
 
 set ns [new Simulator]
 
@@ -44,7 +44,7 @@ $ns node-config -adhocRouting	$val(rp) \
 		-phyType	$val(netif) \
 		-channel	$chan \
 		-energyModel	"EnergyModel" \
-		-initialEnergy	100.0 \
+		-initialEnergy	50.0 \
 		-txPower	0.9 \
 		-rxPower	0.5 \
 		-idlePower	0.45 \
@@ -137,9 +137,9 @@ for {set i 0} {$i <$val(nn)} { incr i } {
 # Generation of movements
 # at what time, which node, where to, at what speed
 $ns at 10.0 "$node(2) setdest 500 300 5"
-$ns at 25.0 "$node(2) setdest 600 500 15"
+$ns at 15.0 "$node(2) setdest 600 500 15"
 $ns at 12.0 "$node(9) setdest 363 287 15"
-$ns at 30.0 "$node(0) setdest 700 54 12"
+$ns at 20.0 "$node(0) setdest 700 54 12"
 
 # Set a TCP connection between node (3) and node (12)
 set tcp [new Agent/TCP/Newreno]
@@ -150,7 +150,7 @@ $ns connect $tcp $sink
 $tcp set packetSize_ 1500
 set ftp [new Application/FTP]
 $ftp attach-agent $tcp
-$ns at 10.0 "$ftp start"
+$ns at 8.0 "$ftp start"
 
 
 # Telling nodes when the simulation ends
@@ -161,7 +161,7 @@ for {set i 0} {$i <$val(nn) } { incr i } {
 # ending nam and the simulation
 $ns at $val(stop) "$ns nam-end-wireless $val(stop)"
 $ns at $val(stop) "stop"
-$ns at 150.01 "puts \"end simulation\" ; $ns halt"
+$ns at 50.01 "puts \"end simulation\" ; $ns halt"
 proc stop {} {
 	global ns tracefd namtrace
 	$ns flush-trace
