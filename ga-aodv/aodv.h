@@ -242,7 +242,7 @@ class AODV: public Agent {
          * Neighbor Management
          */
         void            nb_insert(nsaddr_t id);
-        AODV_Neighbor*       nb_lookup(nsaddr_t id);
+        AODV_Neighbor*  nb_lookup(nsaddr_t id);
         void            nb_delete(nsaddr_t id);
         void            nb_purge(void);
 
@@ -288,7 +288,7 @@ class AODV: public Agent {
 
         aodv_rtable         rthead;                 // routing table
         aodv_ncache         nbhead;                 // Neighbor Cache
-        aodv_bcache          bihead;                 // Broadcast ID Cache
+        aodv_bcache         bihead;                 // Broadcast ID Cache
 
         /*
          * Timers
@@ -340,8 +340,12 @@ public :
 	double		ypos;
 	double		zpos;
 	double		energy_t;
+	double		re_tr;
 	MobileNode	*t_node;
 	double		fitness;
+
+	//Modification (add fitness function)
+	double		CalculateFitness(double myEnergy);
 
 };
 

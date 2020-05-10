@@ -45,6 +45,8 @@ FILE *fpp;
 
 //#define ERROR
 
+int num_nodes = 17;
+
 #ifdef DEBUG
 static int route_request = 0;
 #endif
@@ -151,6 +153,7 @@ AODV::AODV(nsaddr_t id) : Agent(PT_AODV), btimer(this), htimer(this), ntimer(thi
   index = id;
   seqno = 2;
   bid = 1;
+  fitness = 0;
 
   LIST_INIT(&nbhead);
   LIST_INIT(&bihead);
@@ -163,7 +166,7 @@ AODV::AODV(nsaddr_t id) : Agent(PT_AODV), btimer(this), htimer(this), ntimer(thi
   ypos = 0.0;
   zpos = 0.0;
   energy_t = 50.0;
-  fitness = 0;
+  re_tr = 10.0;
 }
 
 /*
@@ -784,6 +787,18 @@ void AODV::recvAODV(Packet *p) {
 
 }
 
+//Modification (calculate fitness function)
+double AODV::CalculateFitness(double myEnergy) {
+  double total_energy = 0.0;
+
+  for (int i = 0; i < num_nodes; i++) {
+    t_node = (MobileNode *) (Node::get_node_by_address(i));
+    energy_t = t_node->energy_model()->energy();
+    total_energy += energy_t;
+  }
+
+  return myEnergy/total_energy;
+}
 
 void AODV::recvRequest(Packet *p) {
   struct hdr_ip *ih = HDR_IP(p);
@@ -796,29 +811,43 @@ void AODV::recvRequest(Packet *p) {
   ypos		= t_node->Y();
   energy_t	= t_node->energy_model()->energy();
 
-  //Modification (calculate fitness)
-  fitness	= energy_t/(50*17);
-
   #ifdef DEBUG
     fp = fopen("debug.txt", "a");
     fprintf(fp, "%.6f %s function: in node %d xpos = %.4f and ypos = %.4f\n",CURRENT_TIME, __FUNCTION__, index, xpos, ypos); 
-    fprintf(fp, "%.6f %s function: in node %d with energy %.4f, fitness %.4f, packet from node %d to node destination %d\n",  CURRENT_TIME, __FUNCTION__, index, energy_t, fitness, rq->rq_src, rq->rq_dst);
+    fprintf(fp, "%.6f %s function: in node %d with energy %.4f, packet from node %d to node destination %d\n",  CURRENT_TIME, __FUNCTION__, index, energy_t, rq->rq_src, rq->rq_dst);
     fclose(fp);   
   #endif
 
   if (rq->rq_dst != index) {
-    if (fitness <= 0) {
+    if (energy_t <= re_tr) {
       #ifdef DEBUG
-        fp = fopen("debug.txt", "a");
-        fprintf(fp, "\n%.6f  discard REQUEST because fitness value : %.4f is less than 0",  CURRENT_TIME, fitness);
-        fclose(fp);
+	fp = fopen("debug.txt", "a");
+	fprintf(fp, "\n%.6f  discard REQUEST because residual energy %.4f is less than the residual energy threshold : %.4f is less than 0\n",  CURRENT_TIME, energy_t, re_tr);
+	fclose(fp);
       #endif
       Packet::free(p);
       return;
     }
-    //else {}
+    else {
+      fitness = CalculateFitness(energy_t);
+      rq->rq_fitness = fitness;
+
+      #ifdef DEBUG
+	fp = fopen("debug.txt", "a");
+	fprintf(fp, "\n%.6f  %s function: node %d has new fitness value %.6f\n",  CURRENT_TIME, __FUNCTION__, index, fitness);
+	fclose(fp);
+      #endif
+    }
   }
-  //else {}
+  else {
+    rq->rq_fitness = fitness;
+
+    #ifdef DEBUG
+      fp = fopen("debug.txt", "a");
+      fprintf(fp, "\n%.6f  %s function: node %d has new fitness value %.6f\n",  CURRENT_TIME, __FUNCTION__, index, fitness);
+      fclose(fp);
+    #endif
+  }
 
   /*
    * Drop if:
@@ -901,7 +930,6 @@ void AODV::recvRequest(Packet *p) {
 
   if(fitness != 0) {
     rt0->rt_fitness = fitness;
-    fitness = 0;
   }
 
 
@@ -1345,13 +1373,6 @@ void AODV::sendRequest(nsaddr_t dst) {
     rt->rt_req_timeout = CURRENT_TIME + MAX_RREQ_TIMEOUT;
   rt->rt_expire = 0;
 
-  #ifdef DEBUG
-    fp = fopen("debug.txt", "a");
-    fprintf(fp, "%.6f %s function: (%2d) - %2d sending Route Request, dst: %d, tout %f ms\n", CURRENT_TIME, __FUNCTION__, ++route_request, index, rt->rt_dst, rt->rt_req_timeout - CURRENT_TIME);
-    fclose(fp);
-  #endif	// DEBUG
-	
-
   // Fill out the RREQ packet 
   // ch->uid() = 0;
   ch->ptype() = PT_AODV;
@@ -1480,7 +1501,7 @@ void AODV::sendHello() {
   //Modification (print function)
   #ifdef DEBUG
     fp = fopen("debug.txt", "a");
-    fprintf(fp, "%.6f %s function: sending Hello from %d\n", CURRENT_TIME, __FUNCTION__, index);
+    fprintf(fp, "%.6f %s function: sending Hello from %d, current number of nodes %d\n", CURRENT_TIME, __FUNCTION__, index, num_nodes);
     fclose(fp);
   #endif
 
