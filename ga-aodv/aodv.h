@@ -43,7 +43,7 @@ The AODV code developed by the CMU/MONARCH group was optimized and tuned by Sami
 #include <aodv/aodv_rqueue.h>
 #include <classifier/classifier-port.h>
 
-//Modification (add node's energy header)
+//Modification (add manet header)
 #include <mobilenode.h>
 
 /*
@@ -245,6 +245,9 @@ class AODV: public Agent {
         AODV_Neighbor*  nb_lookup(nsaddr_t id);
         void            nb_delete(nsaddr_t id);
         void            nb_purge(void);
+//modifikasi
+	void		geneticAlgorithm(nsaddr_t src, nsaddr_t dst);
+	double		dist2node(double x1, double y1, double x2, double y2);
 
         /*
          * Broadcast ID Management
@@ -345,7 +348,7 @@ public :
 	double		fitness;
 
 	//Modification (add fitness function)
-	double		CalculateFitness(double myEnergy);
+	double		CalculateFitness(nsaddr_t src, nsaddr_t dst, double myEnergy, double distance);
 
 };
 

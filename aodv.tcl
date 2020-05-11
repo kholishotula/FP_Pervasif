@@ -52,11 +52,12 @@ $ns node-config -adhocRouting	$val(rp) \
 		-topoInstance	$topo \
 		-agentTrace	ON \
 		-routerTrace	ON \
-		-macTrace	ON \
+		-macTrace	OFF \
 		-movementTrace	ON \
 
 for {set i 0} {$i <$val(nn) } { incr i } {
 	set node($i) [$ns node]
+	$node($i) random-motion 0
 }
 
 # Provide initial location of mobilenodes
@@ -134,24 +135,17 @@ for {set i 0} {$i <$val(nn)} { incr i } {
 	$ns initial_node_pos $node($i) 20
 }
 
-# Generation of movements
-# at what time, which node, where to, at what speed
-$ns at 10.0 "$node(2) setdest 500 300 5"
-$ns at 15.0 "$node(2) setdest 600 500 15"
-$ns at 12.0 "$node(9) setdest 363 287 15"
-$ns at 20.0 "$node(0) setdest 700 54 12"
-
 # Set a TCP connection between node (3) and node (12)
 set tcp [new Agent/TCP/Newreno]
+$tcp set class_ 2
 set sink [new Agent/TCPSink]
 $ns attach-agent $node(3) $tcp
 $ns attach-agent $node(12) $sink
 $ns connect $tcp $sink
-$tcp set packetSize_ 1500
+#$tcp set packetSize_ 1500
 set ftp [new Application/FTP]
 $ftp attach-agent $tcp
 $ns at 8.0 "$ftp start"
-
 
 # Telling nodes when the simulation ends
 for {set i 0} {$i <$val(nn) } { incr i } {
