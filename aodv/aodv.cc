@@ -93,10 +93,10 @@ int AODV::command(int argc, const char*const* argv) {
     if(strncasecmp(argv[1], "start", 2) == 0) {
       btimer.handle((Event*) 0);
 
-      #ifndef AODV_LINK_LAYER_DETECTION
+//      #ifndef AODV_LINK_LAYER_DETECTION
         htimer.handle((Event*) 0);
         ntimer.handle((Event*) 0);
-      #endif // LINK LAYER DETECTION
+//      #endif // LINK LAYER DETECTION
 
       rtimer.handle((Event*) 0);
       return TCL_OK;
