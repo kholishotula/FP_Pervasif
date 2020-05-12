@@ -1548,12 +1548,8 @@ void AODV::sendError(Packet *p, bool jitter) {
 */
 
 void AODV::geneticAlgorithm(nsaddr_t src, nsaddr_t dst) {
-  route[src][0] = src;
-  route[src][1] = 5;
-  route[src][2] = 6;
-  route[src][3] = 11;
-  route[src][4] = dst;
   int i;
+  int iter = 0;
   int prev;
   int now;
   int temp = src;
@@ -1561,10 +1557,15 @@ void AODV::geneticAlgorithm(nsaddr_t src, nsaddr_t dst) {
   double fitness[num_nodes];
   for (i = 0; i < num_nodes; i++) fitness[i] = 0.0;
 
+  bool visited[num_nodes];
+  for (i = 0; i < num_nodes; i++) visited[i] = false;
+
   double max_fitness = 0.0;
 
   fpp = fopen("ga.txt", "a");
   fprintf(fpp, "source : %d\n", src);
+  route[src][iter] = temp;
+  iter+=1;
   while(temp != dst) {
     Node* m_node = Node::get_node_by_address(temp);
     neighbor_list_node* my_mobile_neighbor_list;
@@ -1577,12 +1578,14 @@ void AODV::geneticAlgorithm(nsaddr_t src, nsaddr_t dst) {
       t_node = (MobileNode *) (Node::get_node_by_address(now));
       energy_t = t_node->energy_model()->energy();
 
-      fitness[now] = CalculateFitness(src, dst, energy_t, map[prev][now]);
-      fprintf(fpp, "calculating fitness for %d, fitness %.4f", now, fitness[now]);
-      if(max_fitness < fitness[now]) {
-	max_fitness = fitness[now];
+      if(visited[now] == false) {
+	fitness[now] = CalculateFitness(src, dst, energy_t, map[prev][now]);
+	fprintf(fpp, "calculating fitness for %d, fitness %.4f", now, fitness[now]);
+	if(max_fitness < fitness[now]) {
+	  max_fitness = fitness[now];
+	}
+	fprintf(fpp, " current max_fitness %.4f\n", max_fitness);
       }
-      fprintf(fpp, " current max_fitness %.4f\n", max_fitness);
       if(my_mobile_neighbor_list->next){
 	my_mobile_neighbor_list = my_mobile_neighbor_list->next;
 	prev = now;
@@ -1594,12 +1597,15 @@ void AODV::geneticAlgorithm(nsaddr_t src, nsaddr_t dst) {
 	  if(fitness[i] == max_fitness) break;
 	}
 	max_fitness = 0.0;
-	fprintf(fpp, "-> %d\n", i+1);
+	visited[i] = true;
+	temp = i;
+	route[src][iter] = temp;
+	fprintf(fpp, "-> route[%d][%d] = %d\n", src, iter, route[src][iter]);
+	iter+=1;
 	break;
       }
     }
-    if (temp == 6) break;
-    temp = i+1;
+//    if (iter == 6) break;
   }
   fprintf(fpp, "end\n");
   fclose(fpp);
