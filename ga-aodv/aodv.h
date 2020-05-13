@@ -224,10 +224,8 @@ class AODV: public Agent {
         void            rt_resolve(Packet *p);
         void            rt_update(aodv_rt_entry *rt, u_int32_t seqnum,
 		     	  	u_int16_t metric, nsaddr_t nexthop,
-		      		double expire_time, double fitness);
+		      		double expire_time);
         void            rt_down(aodv_rt_entry *rt);
-	//Modification (to print routing table);
-	void		rt_print(nsaddr_t nodeid);
         void            local_rt_repair(aodv_rt_entry *rt, Packet *p);
  public:
         void            rt_ll_failed(Packet *p);
@@ -245,9 +243,11 @@ class AODV: public Agent {
         AODV_Neighbor*  nb_lookup(nsaddr_t id);
         void            nb_delete(nsaddr_t id);
         void            nb_purge(void);
-//modifikasi
+
+	// Modification (genetic algorithm)
 	void		geneticAlgorithm(nsaddr_t src, nsaddr_t dst);
 	double		dist2node(double x1, double y1, double x2, double y2);
+	double		CalculateFitness(nsaddr_t src, nsaddr_t dst, double myEnergy, double distance);
 
         /*
          * Broadcast ID Management
@@ -345,10 +345,6 @@ public :
 	double		energy_t;
 	double		re_tr;
 	MobileNode	*t_node;
-	double		fitness;
-
-	//Modification (add fitness function)
-	double		CalculateFitness(nsaddr_t src, nsaddr_t dst, double myEnergy, double distance);
 
 };
 

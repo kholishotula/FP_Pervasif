@@ -111,8 +111,6 @@ class aodv_rt_entry {
         aodv_precursors rt_pclist;
         double          rt_expire;     		// when entry expires
         u_int8_t        rt_flags;
-	//Modification (add fitness variable)
-	double		rt_fitness;
 
 #define RTF_DOWN 0
 #define RTF_UP 1

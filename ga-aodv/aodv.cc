@@ -164,7 +164,6 @@ AODV::AODV(nsaddr_t id) : Agent(PT_AODV), btimer(this), htimer(this), ntimer(thi
   index = id;
   seqno = 2;
   bid = 1;
-  fitness = 0;
 
   LIST_INIT(&nbhead);
   LIST_INIT(&bihead);
@@ -502,7 +501,7 @@ void AODV::local_rt_repair(aodv_rt_entry *rt, Packet *p) {
   Scheduler::instance().schedule(&lrtimer, p->copy(), rt->rt_req_timeout);
 }
 
-void AODV::rt_update(aodv_rt_entry *rt, u_int32_t seqnum, u_int16_t metric, nsaddr_t nexthop, double expire_time, double fitness_value) {
+void AODV::rt_update(aodv_rt_entry *rt, u_int32_t seqnum, u_int16_t metric, nsaddr_t nexthop, double expire_time) {
   //Modification (print function)
   #ifdef DEBUG
     fp = fopen("debug.txt", "a");
@@ -515,7 +514,6 @@ void AODV::rt_update(aodv_rt_entry *rt, u_int32_t seqnum, u_int16_t metric, nsad
   rt->rt_flags = RTF_UP;
   rt->rt_nexthop = nexthop;
   rt->rt_expire = expire_time;
-  rt->rt_fitness = fitness_value;
 }
 
 void AODV::rt_down(aodv_rt_entry *rt) {
@@ -542,17 +540,6 @@ void AODV::rt_down(aodv_rt_entry *rt) {
   rt->rt_expire = 0;
 
 } /* rt_down function */
-
-//Modification (for printing table)
-
-void AODV::rt_print(nsaddr_t nodeid) {
-  fpp = fopen("route_table.txt", "a");
-  aodv_rt_entry *rt;
-  for (rt = rtable.head() ; rt ; rt = rt->rt_link.le_next) {
-    fprintf(fpp, "%.6f NODE: %i rt_dst = %i rt_nexthop = %i\n", CURRENT_TIME, nodeid, rt->rt_dst, rt->rt_nexthop);
-  }
-  fclose(fpp);
-}
 
 /*
   Route Handling Functions
@@ -826,28 +813,9 @@ void AODV::recvRequest(Packet *p) {
       Packet::free(p);
       return;
     }
-//    else {
-//      fitness = CalculateFitness(energy_t);
-//      rq->rq_fitness = fitness;
-//
-//      #ifdef DEBUG
-//	fp = fopen("debug.txt", "a");
-//	fprintf(fp, "%.6f %s function: node %d has new fitness value %.6f\n",  CURRENT_TIME, __FUNCTION__, index, fitness);
-//	fclose(fp);
-//      #endif
-//    }
   }
-//  else {
-//    rq->rq_fitness = fitness;
 
-//    #ifdef DEBUG
-//      fp = fopen("debug.txt", "a");
-//      fprintf(fp, "%.6f %s function: node %d has new fitness value %.6f\n",  CURRENT_TIME, //__FUNCTION__, index, fitness);
-//      fclose(fp);
-//    #endif
-//  }
-
-// modifikasi menampilkan list tetangga tiap node
+// modification (print the neighbor list of the node)
   Node* m_node = Node::get_node_by_address(this->addr());
   neighbor_list_node* my_mobile_neighbor_list;
   my_mobile_neighbor_list = m_node->neighbor_list_;
@@ -863,7 +831,7 @@ void AODV::recvRequest(Packet *p) {
           my_mobile_neighbor_list=my_mobile_neighbor_list->next;
       }
       else{
-          fprintf(fp, "## Jumlah: %d\n", count);
+          fprintf(fp, "## Number of neighbor: %d\n", count);
           break;
       }
   }
@@ -920,7 +888,7 @@ void AODV::recvRequest(Packet *p) {
   if ( (rq->rq_src_seqno > rt0->rt_seqno ) || ((rq->rq_src_seqno == rt0->rt_seqno) && (rq->rq_hop_count < rt0->rt_hops)) ) {
     // If we have a fresher seq no. or lesser #hops for the 
     // same seq no., update the rt entry. Else don't bother.
-    rt_update(rt0, rq->rq_src_seqno, rq->rq_hop_count, ih->saddr(), max(rt0->rt_expire, (CURRENT_TIME + REV_ROUTE_LIFE)), fitness);
+    rt_update(rt0, rq->rq_src_seqno, rq->rq_hop_count, ih->saddr(), max(rt0->rt_expire, (CURRENT_TIME + REV_ROUTE_LIFE)));
     if (rt0->rt_req_timeout > 0.0) {
       // Reset the soft state and 
       // Set expiry time to CURRENT_TIME + ACTIVE_ROUTE_TIMEOUT
@@ -946,11 +914,6 @@ void AODV::recvRequest(Packet *p) {
     }
   } 
   // End for putting reverse route in rt table
-
-  if(fitness != 0) {
-    rt0->rt_fitness = fitness;
-  }
-
 
   /*
    * We have taken care of the reverse route stuff.
@@ -1028,17 +991,14 @@ void AODV::recvRequest(Packet *p) {
    */
   else {
     ih->saddr() = index;
-//Modifikasi
-  int i;
-  for (i = 0; i < sizeof(route[rq->rq_src])/sizeof(*route[rq->rq_src]); i++) {
-    if(route[rq->rq_src][i] == index) break;
-  }
-    #ifdef DEBUG
-	fp = fopen("debug.txt", "a");
-	fprintf(fp, "%.6f %s function: ih->daddr %d\n", CURRENT_TIME, __FUNCTION__, route[rq->rq_src][i+1]);
-	fclose(fp);
-    #endif
+
+    //Modification (change the header daddr to the route that has been discovered by GA)
+    int i;
+    for (i = 0; i < sizeof(route[rq->rq_src])/sizeof(*route[rq->rq_src]); i++) {
+      if(route[rq->rq_src][i] == index) break;
+    }
     ih->daddr() = route[rq->rq_src][i+1];
+
     //ih->daddr() = IP_BROADCAST;
     rq->rq_hop_count += 1;
     // Maximum sequence number seen en route
@@ -1092,7 +1052,7 @@ void AODV::recvReply(Packet *p) {
        (rt->rt_hops > rp->rp_hop_count)) ) { // shorter or better route
 	
     // Update the rt entry 
-    rt_update(rt, rp->rp_dst_seqno, rp->rp_hop_count, rp->rp_src, CURRENT_TIME + rp->rp_lifetime, rp->rp_fitness);
+    rt_update(rt, rp->rp_dst_seqno, rp->rp_hop_count, rp->rp_src, CURRENT_TIME + rp->rp_lifetime);
 
     // reset the soft state
     rt->rt_req_cnt = 0;
@@ -1103,7 +1063,6 @@ void AODV::recvReply(Packet *p) {
       // Update the route discovery latency statistics
       // rp->rp_timestamp is the time of request origination
 		
-      rt_print(index);
       rt->rt_disc_latency[(unsigned char)rt->hist_indx] = (CURRENT_TIME - rp->rp_timestamp) / (double) rp->rp_hop_count;
       // increment indx for next time
       rt->hist_indx = (rt->hist_indx + 1) % MAX_HISTORY;
@@ -1286,6 +1245,7 @@ void AODV::forward(aodv_rt_entry *rt, Packet *p, double delay) {
     ch->direction() = hdr_cmn::DOWN;       //important: change the packet's direction
   }
 
+// Modification (comment some lines because all the packets to the destination are no more a broadcast packet (send directly through the route has been discovered))
 //  if (ih->daddr() == (nsaddr_t) IP_BROADCAST) {
     // If it is a broadcast packet
     assert(rt == 0);
@@ -1300,12 +1260,6 @@ void AODV::forward(aodv_rt_entry *rt, Packet *p, double delay) {
     }
 //  }
 //  else { // Not a broadcast packet 
-//Modifikasi
-//    #ifdef DEBUG
-//	fp = fopen("debug.txt", "a");
-//	fprintf(fp, "%.6f %s function: it is not a broadcast packet, delay %.4f\n", CURRENT_TIME, __FUNCTION__, delay);
-//	fclose(fp);
-//    #endif
 //    if(delay > 0.0) {
 //      Scheduler::instance().schedule(target_, p, delay);
 //    }
@@ -1371,7 +1325,13 @@ void AODV::sendRequest(nsaddr_t dst) {
     fclose(fp);
   #endif // DEBUG
 
-//modifikasi
+  // Modification (check whether the source already has route by GA, then remove it and replace with the new one)
+  int i;
+  if(route[index][0] == index) {
+    for (i = 0; i < sizeof(route[index])/sizeof(*route[index]); i++) {
+      route[index][i] = -1;
+    }
+  }
   geneticAlgorithm(index, rt->rt_dst);
 
   // Determine the TTL to be used this time. 
@@ -1422,18 +1382,14 @@ void AODV::sendRequest(nsaddr_t dst) {
   ch->prev_hop_ = index;          // AODV hack
 
   ih->saddr() = index;
-//Modifikasi
-  int i;
+
+  //Modification (change the header daddr to the route that has been discovered by GA)
   for (i = 0; i < sizeof(route[index])/sizeof(*route[index]); i++) {
     if(route[index][i] == index) break;
   }
-    #ifdef DEBUG
-	fp = fopen("debug.txt", "a");
-	fprintf(fp, "%.6f %s function: ih->daddr %d\n", CURRENT_TIME, __FUNCTION__, route[index][i+1]);
-	fclose(fp);
-    #endif
   ih->daddr() = route[index][i+1];
   //ih->daddr() = IP_BROADCAST;
+
   ih->sport() = RT_PORT;
   ih->dport() = RT_PORT;
 
@@ -1477,10 +1433,6 @@ void AODV::sendReply(nsaddr_t ipdst, u_int32_t hop_count, nsaddr_t rpdst, u_int3
   rp->rp_src = index;
   rp->rp_lifetime = lifetime;
   rp->rp_timestamp = timestamp;
-
-  if (rp->rp_dst == index) {
-    rp->rp_fitness = max (fitness, rt->rt_fitness);
-  }
    
   // ch->uid() = 0;
   ch->ptype() = PT_AODV;
@@ -1547,7 +1499,14 @@ void AODV::sendError(Packet *p, bool jitter) {
    Neighbor Management Functions
 */
 
+// Modification (genetic algorithm function)
 void AODV::geneticAlgorithm(nsaddr_t src, nsaddr_t dst) {
+  #ifdef DEBUG
+    fp = fopen("debug.txt", "a");
+    fprintf(fp, "%.6f %s function\n", CURRENT_TIME, __FUNCTION__);
+    fclose(fp);
+  #endif // DEBUG
+
   int i;
   int iter = 0;
   int prev;
@@ -1578,7 +1537,7 @@ void AODV::geneticAlgorithm(nsaddr_t src, nsaddr_t dst) {
       t_node = (MobileNode *) (Node::get_node_by_address(now));
       energy_t = t_node->energy_model()->energy();
 
-      if(visited[now] == false) {
+      if(visited[now] == false && now != src) {
 	fitness[now] = CalculateFitness(src, dst, energy_t, map[prev][now]);
 	fprintf(fpp, "calculating fitness for %d, fitness %.4f", now, fitness[now]);
 	if(max_fitness < fitness[now]) {
@@ -1605,13 +1564,12 @@ void AODV::geneticAlgorithm(nsaddr_t src, nsaddr_t dst) {
 	break;
       }
     }
-//    if (iter == 6) break;
   }
   fprintf(fpp, "end\n");
   fclose(fpp);
 }
 
-//Modifikasi
+//Modification (calculate distance between 2 nodes)
 double AODV::dist2node(double x1, double y1, double x2, double y2) {
   double x = pow((x2-x1), 2);
   double y = pow((y2-y1), 2);
@@ -1620,6 +1578,7 @@ double AODV::dist2node(double x1, double y1, double x2, double y2) {
 
 //Modification (calculate fitness function)
 double AODV::CalculateFitness(nsaddr_t src, nsaddr_t dst, double myEnergy, double distance) {
+  // the fitness function is the sum of resenergy function (resenergy of node/resenergy of all nodes) per distance function (distance between the node and its neighbor/distance between source and destination)
   double total_energy = 0.0;
   for (int i = 0; i < num_nodes; i++) {
     t_node = (MobileNode *) (Node::get_node_by_address(i));
@@ -1691,31 +1650,24 @@ void AODV::recvHello(Packet *p) {
   struct hdr_aodv_reply *rp = HDR_AODV_REPLY(p);
   AODV_Neighbor *nb;
 
-  //modifikasi
-  Node *sender = Node::get_node_by_address(rp->rp_dst);
-  Node *receiver = Node::get_node_by_address(index);
-
   nb = nb_lookup(rp->rp_dst);
   if(nb == 0) {
     nb_insert(rp->rp_dst);
 
-    //modifikasi
+    //Modification (add to neighbor list)
+    Node *sender = Node::get_node_by_address(rp->rp_dst);
+    Node *receiver = Node::get_node_by_address(index);
     receiver->addNeighbor(sender);
 
+    //Modification (save the distance between these 2 node)
     MobileNode *sender_node = (MobileNode*) (Node::get_node_by_address(rp->rp_dst));
     double x1 = sender_node->X();
     double y1 = sender_node->Y();
     MobileNode *receiver_node = (MobileNode*) (Node::get_node_by_address(index));
     double x2 = receiver_node->X();
     double y2 = receiver_node->Y();
-
     double distance = dist2node(x1, y1, x2, y2);
     map[index][rp->rp_dst] = distance;
-    #ifdef DEBUG
-      fp = fopen("debug.txt", "a");
-      fprintf(fp, "%.6f %s function: distance between node %d to node %d is %.4f\n", CURRENT_TIME, __FUNCTION__, index, rp->rp_dst, distance);
-      fclose(fp);
-    #endif
   }
   else {
     nb->nb_expire = CURRENT_TIME + (1.5 * ALLOWED_HELLO_LOSS * HELLO_INTERVAL);
@@ -1774,6 +1726,32 @@ void AODV::nb_delete(nsaddr_t id) {
   #endif
 
   AODV_Neighbor *nb = nbhead.lh_first;
+
+  //modifikasi
+//  Node *idx = Node::get_node_by_address(index);
+//  neighbor_list_node* my_mobile_neighbor_list;
+//  my_mobile_neighbor_list = idx->neighbor_list_;
+
+//  while(my_mobile_neighbor_list) {
+//    if(my_mobile_neighbor_list->nodeid == id) {
+//      neighbor_list_node* new_mobile_neighbor_list;
+//      new_mobile_neighbor_list = my_mobile_neighbor_list->next;
+//      idx->neighbor_list_ = new_mobile_neighbor_list;
+//      break;
+//    }
+//    else if(my_mobile_neighbor_list->next->nodeid == id) {
+//      if(my_mobile_neighbor_list->next->next) {
+//	my_mobile_neighbor_list->next = my_mobile_neighbor_list->next->next;
+//      }
+//      else {
+//	my_mobile_neighbor_list->next = NULL;
+//      }
+//      break;
+//    }
+//    if(my_mobile_neighbor_list->next){
+//      my_mobile_neighbor_list = my_mobile_neighbor_list->next;
+//    }
+//  }
 
   log_link_del(id);
   seqno += 2;     // Set of neighbors changed
